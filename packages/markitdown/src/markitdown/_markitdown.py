@@ -685,11 +685,12 @@ class MarkItDown:
         # Call magika to guess from the stream
         cur_pos = file_stream.tell()
         try:
-            result = self._magika.identify_stream(file_stream)
-            if result.status == "ok" and result.prediction.output.label != "unknown":
+            result = self._magika.identify_path(Path(base_guess.local_path))
+            #result = self._magika.identify_stream(file_stream)
+            if result.output.ct_label != "file_does_not_exist" and result.output.ct_label != "unknown":
                 # If it's text, also guess the charset
                 charset = None
-                if result.prediction.output.is_text:
+                if result.output.mime_type[:4] == 'text':
                     # Read the first 4k to guess the charset
                     file_stream.seek(cur_pos)
                     stream_page = file_stream.read(4096)
@@ -700,21 +701,21 @@ class MarkItDown:
 
                 # Normalize the first extension listed
                 guessed_extension = None
-                if len(result.prediction.output.extensions) > 0:
-                    guessed_extension = "." + result.prediction.output.extensions[0]
+                if len(result.output.ct_label ) > 0:
+                    guessed_extension = "." + result.output.ct_label
 
                 # Determine if the guess is compatible with the base guess
                 compatible = True
                 if (
                     base_guess.mimetype is not None
-                    and base_guess.mimetype != result.prediction.output.mime_type
+                    and base_guess.mimetype != result.output.mime_type
                 ):
                     compatible = False
 
                 if (
                     base_guess.extension is not None
                     and base_guess.extension.lstrip(".")
-                    not in result.prediction.output.extensions
+                    not in result.output.ct_label
                 ):
                     compatible = False
 
@@ -729,7 +730,7 @@ class MarkItDown:
                     guesses.append(
                         StreamInfo(
                             mimetype=base_guess.mimetype
-                            or result.prediction.output.mime_type,
+                            or result.output.mime_type,
                             extension=base_guess.extension or guessed_extension,
                             charset=base_guess.charset or charset,
                             filename=base_guess.filename,
@@ -742,7 +743,7 @@ class MarkItDown:
                     guesses.append(enhanced_guess)
                     guesses.append(
                         StreamInfo(
-                            mimetype=result.prediction.output.mime_type,
+                            mimetype=result.output.mime_type,
                             extension=guessed_extension,
                             charset=charset,
                             filename=base_guess.filename,
